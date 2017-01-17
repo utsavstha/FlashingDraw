@@ -10,17 +10,25 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import android.app.Activity;
 import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.GLU;
 import android.opengl.Matrix;
 import android.opengl.GLSurfaceView;
 import android.os.SystemClock;
+import android.util.DisplayMetrics;
 import android.util.Log;
+
+import static java.security.AccessController.getContext;
 
 public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
@@ -62,15 +70,15 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     private final int colorDataSize = 4;
 
     private float width, height;
-
+    private List<Float> angle = new ArrayList<>();
     private float[] lineStartPoint = new float[]{0, 0, 1f};
-
+    private float[] oldVertexData;
     private float[] lineEndPoint = new float[]{0, 0, 0};
-
+    private float[] vertexDataf;
     private float[] cameraPos = new float[]{0f, 0f, 2.5f};
     private float[] cameraLook = new float[]{0f, 0f, -5f};
     private float[] cameraUp = new float[]{0f, 1f, 0f};
-
+    public int size = 0;
 
     private final String vertexShaderCode =
             "uniform mat4 u_MVPMatrix;" +
@@ -88,7 +96,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
                     "void main() {" +
                     "  gl_FragColor = v_Color;" +
                     "}";
-
+    List<Float> vertexData = new ArrayList<>();
     public OpenGLRenderer(Context context) {
         this.context = context;
 
@@ -211,6 +219,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     @Override
     public void onSurfaceChanged(GL10 gl10, int width, int height) {
         GLES20.glViewport(0, 0, width/2, height/2);
+        DisplayMetrics displaymetrics = new DisplayMetrics();
 
         this.width = width;
         this.height = height;
@@ -244,7 +253,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
         GLES20.glUniformMatrix4fv(mMVPMatrixHandle, 1, false, mMVPMatrix, 0);
 
-        drawTriangle(triangleVertices);
+       // drawTriangle(triangleVertices);
         drawIntersectionLine();
     }
 
@@ -266,19 +275,31 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         lineVertices.position(0);
         GLES20.glVertexAttribPointer(mPositionHandle, positionDataSize, GLES20.GL_FLOAT, false, lineStrideBytes, lineVertices);
         GLES20.glEnableVertexAttribArray(mPositionHandle);
-        GLES20.glDrawArrays(GLES20.GL_LINES, 0, 2);
+        GLES20.glDrawArrays(GLES20.GL_LINES, 0, 2 * size );
     }
 
     private void moveIntersectionLineEndPoint(float[] lineEndPoint)
     {
-        this.lineEndPoint = lineEndPoint;
 
-        float[] lineVerticesData = {
-                lineStartPoint[0], lineStartPoint[1], lineStartPoint[2],
-                lineEndPoint[0], lineEndPoint[1], lineEndPoint[2]
-        };
-        lineVertices = ByteBuffer.allocateDirect(lineVerticesData.length * bytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
-        lineVertices.put(lineVerticesData).position(0);
+        /*float[] lineVerticesData = {
+                lineEndPoint[0], lineEndPoint[1], lineEndPoint[2],
+                lineEndPoint[3], lineEndPoint[4], lineEndPoint[5],
+
+        };*/
+        if(vertexDataf != null){
+            float[] data = new float[lineEndPoint.length + vertexDataf.length];
+            System.arraycopy(vertexDataf, 0, data, 0, vertexDataf.length);
+            System.arraycopy(lineEndPoint, 0, data, vertexDataf.length, lineEndPoint.length);
+            // size = lineEndPoint.length;
+           // Log.d("opengl","vertexList"+ Arrays.toString(lineEndPoint));
+            lineVertices = ByteBuffer.allocateDirect(data.length * bytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
+            lineVertices.put(data).position(0);
+        }else{
+            lineVertices = ByteBuffer.allocateDirect(lineEndPoint.length * bytesPerFloat).order(ByteOrder.nativeOrder()).asFloatBuffer();
+            lineVertices.put(lineEndPoint).position(0);
+        }
+
+
     }
 
     public static String readShader(String filePath) throws IOException {
@@ -315,10 +336,10 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         Matrix.invertM(inverseView, 0, view, 0);
         float[] rayWorld4D = multiplyMat4ByVec4(inverseView, rayEye);
         float[] rayWorld = new float[]{rayWorld4D[0], rayWorld4D[1], rayWorld4D[2]};
+        Log.d("opengl", Arrays.toString(rayWorld));
+      //  rayDirection = normalizeVector3(rayWorld);
 
-        rayDirection = normalizeVector3(rayWorld);
-
-        return rayDirection;
+        return rayWorld;
     }
 
     public float[] normalizeVector3(float[] vector3)
@@ -331,44 +352,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         return normalizedVector;
     }
 
-    /*
-        public float[] getMouseRayProjection(float touchX, float touchY, float windowWidth, float windowHeight, float[] modelView, float[] projection)
-        {
-            float[] rayDirection = new float[4];
 
-            float normalizedX = 2 * touchX/windowWidth - 1;
-            float normalizedY = 1 - 2*touchY/windowHeight;
-
-            float[] unviewMatrix = new float[16];
-            float[] viewMatrix = new float[16];
-            Matrix.multiplyMM(viewMatrix, 0, projection, 0, modelView, 0);
-            Matrix.invertM(unviewMatrix, 0, viewMatrix, 0);
-
-            float[] nearPoint = multiplyMat4ByVec4(unviewMatrix, new float[]{normalizedX, normalizedY, 0, 1});
-            float[] modelviewInverse = new float[16];
-            Matrix.invertM(modelviewInverse, 0, modelView, 0);
-
-            float[] cameraPos = new float[4];
-            cameraPos[0] = modelviewInverse[12];
-            cameraPos[1] = modelviewInverse[13];
-            cameraPos[2] = modelviewInverse[14];
-            cameraPos[3] = modelviewInverse[15];
-
-            rayDirection[0] = (nearPoint[0] - cameraPos[0]);
-            rayDirection[1] = (nearPoint[1] - cameraPos[1]);
-            rayDirection[2] = (nearPoint[2] - cameraPos[2]);
-            rayDirection[3] = (nearPoint[3] - cameraPos[3]);
-
-            return rayDirection;
-        }
-     */
-
-    /*
-    public float[] getOGLPosition(int x, int y)
-    {
-        GLU.gluUnProject(x, y, 0, , modelOffset, project, projectOffset, view, viewOffset, obj, objOffset)
-    }
-    */
 
     public float[] getCameraPos(float[] modelView)
     {
@@ -415,14 +399,154 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         return returnMatrix;
     }
 
-    public void onTouch(float touchX, float touchY)
+    public void onTouch(float startX, float startY,float endX, float endY)
     {
-        float[] mouseRayProjection = getMouseRayProjection(touchX, touchY, width, height, mMVMatrix, mProjectionMatrix);
-        Log.d("OpenGLES2Test", "Mouse Ray: " + floatArrayAsString(mouseRayProjection));
-        //Log.d("OpenGLES2Test", "ModelView: " + floatArrayAsString(mMVMatrix));
-        //Log.d("OpenGLES2Test", "ModelViewInverse: " + floatArrayAsString(getInverseMatrix(mMVMatrix)));
-        //Log.d("OpenGLES2Test", "Mouse Coordinates: " + touchX + ", " + touchY);
-        //Log.d("OpenGLES2Test", "Ray Coordinates: " + mouseRayProjection[0] + ", " + mouseRayProjection[1] + ", " + mouseRayProjection[2] + ", " + mouseRayProjection[3]);
+       // float[] mouseRayProjection = getMouseRayProjection(touchX, touchY, width, height, mMVMatrix, mProjectionMatrix);
+        float[] start = getWorldCoords(startX, startY);
+        float[] end = getWorldCoords(endX, endY);
+
+        //float[] start = new float[]{startX, startY, -1f};
+       // float[] end = new float[]{endX, endY, -1f};
+
+        float[] mouseRayProjection = new float[start.length + end.length];
+        System.arraycopy(start, 0, mouseRayProjection, 0, start.length);
+        System.arraycopy(end, 0, mouseRayProjection, start.length, end.length);
+        Log.d("opengl", "Mouse Ray: " + floatArrayAsString(mouseRayProjection));
+
+      /* for(int i = 0; i < mouseRayProjection.length; i++){
+           vertexData.add(mouseRayProjection[i]);
+       }
+
+
+        List<Float> floatList = vertexData;
+        float[] floatArray = new float[floatList.size()];
+        int i = 0;
+
+        for (Float f : floatList) {
+            floatArray[i++] = (f != null ? f : Float.NaN); // Or whatever default you want.
+        }*/
         moveIntersectionLineEndPoint(mouseRayProjection);
+        oldVertexData = new float[mouseRayProjection.length];
+        oldVertexData = mouseRayProjection;
+    }
+    public void onActionUp(float startX, float startY,float endX, float endY) {
+        // float[] mouseRayProjection = getMouseRayProjection(touchX, touchY, width, height, mMVMatrix, mProjectionMatrix);
+        /*float[] start = getWorldCoords(startX, startY);
+        float[] end = getWorldCoords(endX, endY);
+
+        //float[] start = new float[]{startX, startY, -1f};
+        // float[] end = new float[]{endX, endY, -1f};
+
+        float[] mouseRayProjection = new float[start.length + end.length];
+        System.arraycopy(start, 0, mouseRayProjection, 0, start.length);
+        System.arraycopy(end, 0, mouseRayProjection, start.length, end.length);*/
+
+
+        for(int i = 0; i < oldVertexData.length; i++){
+            vertexData.add(oldVertexData[i]);
+        }
+
+
+        List<Float> floatList = vertexData;
+        vertexDataf = new float[floatList.size()];
+        int i = 0;
+
+        for (Float f : floatList) {
+            vertexDataf[i++] = (f != null ? f : Float.NaN); // Or whatever default you want.
+        }
+      //  moveIntersectionLineEndPoint(floatArray);
+
+    }
+    public float[] getWorldCoords(float x, float y)
+    {
+        // Initialize auxiliary variables.
+
+        // SCREEN height & width (ej: 320 x 480)
+        float screenW = width;
+        float screenH = height;
+
+        // Auxiliary matrix and vectors
+        // to deal with ogl.
+        float[] invertedMatrix, transformMatrix,
+                normalizedInPoint, outPoint;
+        invertedMatrix = new float[16];
+        transformMatrix = new float[16];
+        normalizedInPoint = new float[4];
+        outPoint = new float[4];
+
+        // Invert y coordinate, as android uses
+        // top-left, and ogl bottom-left.
+        int oglTouchY = (int) (screenH - y);
+
+       /* Transform the screen point to clip
+       space in ogl (-1,1) */
+        normalizedInPoint[0] =
+                (float) (x * 2.0f / screenW - 1.0);
+        normalizedInPoint[1] =
+                (float) ((oglTouchY) * 2.0f / screenH - 1.0);
+        normalizedInPoint[2] = - 1.0f;
+        normalizedInPoint[3] = 1.0f;
+
+       /* Obtain the transform matrix and
+       then the inverse. */
+        //Matrix.setIdentityM(mMVMatrix, 0);
+        Matrix.multiplyMM(
+                transformMatrix, 0,
+                mProjectionMatrix, 0,
+                mMVMatrix, 0);
+        Matrix.invertM(invertedMatrix, 0,
+                transformMatrix, 0);
+
+       /* Apply the inverse to the point
+       in clip space */
+        Matrix.multiplyMV(
+                outPoint, 0,
+                invertedMatrix, 0,
+                normalizedInPoint, 0);
+/*
+        if (outPoint[3] == 0.0)
+        {
+            // Avoid /0 error.
+            //Log.e("World coords", "ERROR!");
+            return worldPos;
+        }*/
+
+        // Divide by the 3rd component to find
+        // out the real position.
+        /*worldPos.Set(
+                outPoint[0] / outPoint[3],
+                outPoint[1] / outPoint[3]);*/
+       /* List<Float> value = new ArrayList<>();
+        value.add(outPoint[0] / outPoint[3] *2.5f);
+        value.add(outPoint[1] / outPoint[3]*2.5f);
+        value.add(outPoint[0] / outPoint[3] *2.5f);*/
+        float[] value = new float[]{outPoint[0] / outPoint[3] *2.5f, outPoint[1] / outPoint[3]*2.5f, -1};
+        return value;
+    }
+    public float calculateAngle(Line one, Line two){
+        float slopeOne, slopeTwo;
+
+        slopeOne = calculateSlope(one);
+
+        slopeTwo = calculateSlope(two);
+
+        return (float)calulateAngle(slopeOne, slopeTwo);
+
+    }
+    private float calculateSlope(Line one){
+      return   (one.getTwo().getY() - one.getOne().getY()) / (one.getTwo().getX() - one.getOne().getX());
+    }
+
+    private double calulateAngle(double m1, double m2){
+
+       return Math.toDegrees(Math.atan2((m2 - m1), (1 + (m1 * m2))));
+    }
+
+    public void setAngle(float angle) {
+        this.angle.add(angle);
+    }
+
+    public List<Float> getVertexData() {
+        return vertexData;
     }
 }
