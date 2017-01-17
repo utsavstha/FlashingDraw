@@ -70,42 +70,57 @@ class MyGLSurfaceView extends GLSurfaceView {
 
 
         switch(e.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                renderer.size++;
+            case MotionEvent.ACTION_DOWN:{
+                float dxDown = e.getX();
+                float dyDown = e.getY();
+                dxDown = (dxDown / (getDeviceWidth(getContext()) / 2)) - 1;
+                dyDown = 1 - (dyDown / (getDeviceHeight(getContext()) / 2));
+                //renderer.size++;
                 if(previousX == 0 && previousY == 0){
-                    previousX = x;
-                    previousY = y;
+                    previousX = dxDown;
+                    previousY = dyDown;
                 }
-                if(count ==0){
+               /* if(count ==0){
                     oldX = x;
                     oldY = y;
                     count++;
-                }
+                }*/
+            }
+
 
                // renderer.onTouch(previousX, previousY,e.getX(), e.getY());
 
                 break;
-            case MotionEvent.ACTION_MOVE:
-                float dx = x - previousX;
-                float dy = y - previousY;
+            case MotionEvent.ACTION_MOVE:{
+                float dxDown = e.getX();
+                float dyDown = e.getY();
+                dxDown = (dxDown / (getDeviceWidth(getContext()) / 2)) - 1;
+                dyDown = 1 - (dyDown / (getDeviceHeight(getContext()) / 2));
 
-                renderer.onTouch(previousX, previousY,e.getX(), e.getY());
-               // renderer.onTouch(-1.198502f, -0.34644192f, 0.44943827f, 0.2771536f);
+                renderer.onTouch(previousX, previousY,dxDown, dyDown);
+                // renderer.onTouch(-1.198502f, -0.34644192f, 0.44943827f, 0.2771536f);
                 //renderer.onTouch(-3f, -3f, 3f, -3f);
                 Log.d("opengl","Touch"+ Arrays.toString(renderer.getWorldCoords(e.getX(), e.getY())));
+            }
+
                 break;
-            case MotionEvent.ACTION_UP:
-                renderer.onActionUp(previousX, previousY,e.getX(), e.getY());
-                previousX = e.getX();
-                previousY = e.getY();
-                Line one = new Line();
+            case MotionEvent.ACTION_UP:{
+               /* float dxDown = e.getX();
+                float dyDown = e.getY();
+                dxDown = (dxDown / (getDeviceWidth(getContext()) / 2)) - 1;
+                dyDown = 1 - (dyDown / (getDeviceHeight(getContext()) / 2));
+                renderer.onActionUp(previousX, previousY,dxDown, dyDown);
+                previousX = dxDown;
+                previousY = dyDown;*/
+
+               /* Line one = new Line();
                 Line two = new Line();
 
 
-                /*one.setOne(new Coordinate(1,2));
+                *//*one.setOne(new Coordinate(1,2));
                 one.setTwo(new Coordinate(3,4));
                 two.setOne(new Coordinate(3,4));
-                two.setTwo(new Coordinate(2,5));*/
+                two.setTwo(new Coordinate(2,5));*//*
                 one.setOne(new Coordinate(oldX, oldY));
                 one.setTwo(new Coordinate(previousX,previousY));
                 two.setOne(new Coordinate(previousX,previousY));
@@ -115,7 +130,9 @@ class MyGLSurfaceView extends GLSurfaceView {
                     float ang =  renderer.calculateAngle(one, two);
                     MainActivity.angle.setText("angle is: "+ ang);
                     renderer.setAngle(ang);
-                }
+                }*/
+            }
+
 
 
                 //Toast.makeText(getContext(), , Toast.LENGTH_LONG).show();
@@ -123,5 +140,17 @@ class MyGLSurfaceView extends GLSurfaceView {
         }
 
         return true;
+    }
+
+    public static int getDeviceWidth(Context context) {
+        DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
+        int width = displayMetrics.widthPixels;
+        return width;
+    }
+
+    public static int getDeviceHeight(Context context) {
+        DisplayMetrics displayMetrics = context.getResources().getDisplayMetrics();
+        int height = displayMetrics.heightPixels;
+        return height;
     }
 }

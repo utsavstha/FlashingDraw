@@ -275,7 +275,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         lineVertices.position(0);
         GLES20.glVertexAttribPointer(mPositionHandle, positionDataSize, GLES20.GL_FLOAT, false, lineStrideBytes, lineVertices);
         GLES20.glEnableVertexAttribArray(mPositionHandle);
-        GLES20.glDrawArrays(GLES20.GL_LINES, 0, 2 * size );
+        GLES20.glDrawArrays(GLES20.GL_LINES, 0, 2 );
     }
 
     private void moveIntersectionLineEndPoint(float[] lineEndPoint)
@@ -402,8 +402,8 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     public void onTouch(float startX, float startY,float endX, float endY)
     {
        // float[] mouseRayProjection = getMouseRayProjection(touchX, touchY, width, height, mMVMatrix, mProjectionMatrix);
-        float[] start = getWorldCoords(startX, startY);
-        float[] end = getWorldCoords(endX, endY);
+        float[] start = new float[]{startX, startY};
+        float[] end = new float[]{endX, endY};
 
         //float[] start = new float[]{startX, startY, -1f};
        // float[] end = new float[]{endX, endY, -1f};
